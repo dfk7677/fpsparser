@@ -22,6 +22,7 @@ def result(date, fr, ft, framenum):
 
 parser = argparse.ArgumentParser(description='Parse an MSI Afterburner monitoring log file.')
 parser.add_argument('-i', metavar='<inputfile>', help='Log filename', required=True)
+parser.add_argument('--consecutive', '-c', help='Read consecutive log files as one', action="store_true")
 parser.add_argument('--frametime', help='Parse frametime', action="store_true")
 
 data = []
@@ -40,28 +41,34 @@ for line in log:
 	fields = list(map(str.strip, temp))
 	
 	if fields[0] == '00':
+
 		if fields[2] != "Hardware monitoring log v1.5":
 			print("Incompatible MSI Afterburner version")
 			sys.exit(2)
-		if frames > 1000:
-			result(fields[1], data, frames)
-		elif frames > 0:
-			print('Not enough data')
-		frames = 0
+		if not args.consecutive:
+			if frames > 1000:
+				result(fields[1], framerates, frametimes, frames)
+			elif frames > 0:
+				print('Not enough data')
+			
+			frames = 0
 		
 	elif fields[0] == '01':
-		if frames > 1000:
-			print("GPU:" + fields[2])
+		if frames == 0:			
+			print("GPU: " + fields[2])
 	elif fields[0] == '02':
 		if 'Framerate' in fields:
 			index[0] = fields.index("Framerate")
-			framerates = []
+			if not args.consecutive:
+				framerates = []
+
 		else:
 			print("The logfile must contain framerates")
 			sys.exit(2)
 		if 'Frametime' in fields and args.frametime:
 			index[1] = fields.index("Frametime")
-			frametimes = []
+			if not args.consecutive:
+				frametimes = []
 	elif fields[0] == '80':		
 		if fields[index[0]] != 'N/A' and fields[index[0]] != '0.000':
 			frames += 1
